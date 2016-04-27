@@ -1,0 +1,2 @@
+# gobang
+Review basic knowledge
