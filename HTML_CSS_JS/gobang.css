@@ -1,0 +1,7 @@
+body{background-color: silver;}
+#gameboard{display:block;margin: 0 auto;background-color:#EEEEEE;padding:40px;}
+/* 40px * 40px for each cell */
+.line {stroke:lightgray;stroke-width:2;}
+.chess{stroke:gray; stroke-width:1;}
+.chess.user{fill:white;}
+.chess.ai{fill:black;}
