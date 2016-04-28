@@ -2,17 +2,23 @@ const LEN = 15;	// the size of gameboard is LEN * LEN
 const CELL_BASE_SIZE = 40;	// the size of each chess, in px
 const PADDING = 40;
 
-// get index of the first object(include Array, but not Function) by value, regardless the same reference or not
-Array.prototype.indexOfObject = function (obj) {
-    var objStr = JSON.stringify(obj), idx = -1;
-    this.forEach(function (d, i) {
-        var tmpStr = JSON.stringify(d);
-        if (tmpStr === objStr) {
-            idx = i;
-            return;
-        }
-    });
-    return idx;
+// get index of the first sub array by value, regardless the same reference or not
+Array.prototype.indexOfSubArray = function (arr) {
+    for (var i = 0; i < this.length; i++) {
+        if (Array.isArray(this[i]) && this[i].equals(arr))
+            return i;
+    }
+    return -1;  // not founded
+};
+Array.prototype.equals = function (arr) {
+    if (Array.isArray(arr)) {
+        if (this === arr) return true;
+        if (this.length !== arr.length) return false;
+        for (var i = 0; i < this.length; i++)
+            if (this[i] !== arr[i]) return false;
+        return true;
+    }
+    return false;
 };
 // get counts of val (strict equality) in this Array
 Array.prototype.countsOf = function (val) {
@@ -30,98 +36,126 @@ Array.prototype.countsOf = function (val) {
     var isUserTurn = true, isGameOver = false;
 
     var clickHandler = function (event) {
-		if (isGameOver) return;
+        if (isGameOver) {
+            if (confirmRestart(getResult())) {
+                isGameOver = false;
+                restart();
+            }
+            return;
+        }
         var pos = getPosition(event);
         if (board[pos[0]][pos[1]]) {
             return; // already has chess here
         }
         drawChess(pos);
         isUserTurn = false;
-		isGameOver = checkpoint();
-        if (isGameOver) return;
+        var result = getResult();
+        if (result) {
+            if (confirmRestart(result)) {
+                isGameOver = false;
+                return restart();
+            }
+            isGameOver = true;
+            return;
+        }
         // AI turn
         var ai_pos = AI(board);
         drawChess(ai_pos);
         isUserTurn = true;
-		isGameOver = checkpoint();
-        if (isGameOver) return;
+        var result = getResult();
+        if (result) {
+            if (confirmRestart(result)) {
+                isGameOver = false;
+                return restart();
+            }
+            isGameOver = true;
+            return;
+        }
     };
 
     var setInitialState = function () {
-            var tmpLen = len - 1;
-            for (var i = 0; i <= tmpLen / 2; i++) {
-                board[i] = [];
-                board[tmpLen - i] = [];
-                for (var j = 0; j <= tmpLen / 2; j++) {
-                    board[i][j] = board[i][tmpLen - j] = board[tmpLen - i][j] = board[tmpLen - i][tmpLen - j] = ROLE_FLAG.NA;
+        var tmpLen = len - 1;
+        for (var i = 0; i <= tmpLen / 2; i++) {
+            board[i] = [];
+            board[tmpLen - i] = [];
+            for (var j = 0; j <= tmpLen / 2; j++) {
+                board[i][j] = board[i][tmpLen - j] = board[tmpLen - i][j] = board[tmpLen - i][tmpLen - j] = ROLE_FLAG.NA;
+            }
+        }
+    },
+    getPosition = function (evt) {
+        return [evt.offsetY, evt.offsetX].map(function (d) { return parseInt((d - padding) / cell_base_size); });
+    },
+    drawChess = function (pos) {
+        board[pos[0]][pos[1]] = isUserTurn ? ROLE_FLAG.USER : ROLE_FLAG.AI;
+        //console.log(`position: ${pos[0]}, ${pos[1]}`);
+        $board.circle(cell_base_size - (cell_base_size) / 10).addClass("chess").addClass(isUserTurn ? "user" : "ai").move(pos[1] * cell_base_size, pos[0] * cell_base_size);
+    },
+    getWiner = function () {
+        for (var i = 0; i < len; i++) {
+            for (var j = 0; j <= len - 5; j++) {
+                // horizental
+                if (board[i][j] && board[i][j] === board[i][j + 1] && board[i][j + 1] === board[i][j + 2] && board[i][j + 2] === board[i][j + 3] && board[i][j + 3] === board[i][j + 4])
+                    return board[i][j];
+                // vertical
+                if (board[j][i] && board[j][i] === board[j + 1][i] && board[j + 1][i] === board[j + 2][i] && board[j + 2][i] === board[j + 3][i] && board[j + 3][i] === board[j + 4][i])
+                    return board[j][i];
+                // cross, slash
+                if (i <= (len - 5) && board[i][j] && board[i][j] === board[i + 1][j + 1] && board[i + 1][j + 1] === board[i + 2][j + 2] && board[i + 2][j + 2] === board[i + 3][j + 3] && board[i + 3][j + 3] === board[i + 4][j + 4])
+                    return board[i][j];
+                // cross, backslash
+                if (i >= 4 && board[i][j] && board[i][j] === board[i - 1][j + 1] && board[i - 1][j + 1] === board[i - 2][j + 2] && board[i - 2][j + 2] === board[i - 3][j + 3] && board[i - 3][j + 3] === board[i - 4][j + 4])
+                    return board[i][j];
+            }
+        }
+        return ROLE_FLAG.NA;
+    },
+    isATie = function () {
+        var isATie = true;
+        for (var i = 0; i < len; i++) {
+            if (!isATie) break;
+            for (var j = 0; j < len; j++) {
+                if (!board[i][j]) { //if (board[i][j] === ROLE_FLAG.NA) {
+                    isATie = false;
+                    break;
                 }
             }
-        },
-		getPosition = function(evt){
-            return [evt.offsetY, evt.offsetX].map(function (d) { return parseInt((d - padding) / cell_base_size); });
-		},
-        getWiner = function () {
-            for (var i = 0; i < len; i++) {
-                for (var j = 0; j <= len - 5; j++) {
-                    // horizental
-                    if (board[i][j] && board[i][j] === board[i][j + 1] && board[i][j + 1] === board[i][j + 2] && board[i][j + 2] === board[i][j + 3] && board[i][j + 3] === board[i][j + 4])
-                        return board[i][j];
-                    // vertical
-                    if (board[j][i] && board[j][i] === board[j + 1][i] && board[j + 1][i] === board[j + 2][i] && board[j + 2][i] === board[j + 3][i] && board[j + 3][i] === board[j + 4][i])
-                        return board[j][i];
-                    // cross, slash
-                    if (i <= (len - 5) && board[i][j] && board[i][j] === board[i + 1][j + 1] && board[i + 1][j + 1] === board[i + 2][j + 2] && board[i + 2][j + 2] === board[i + 3][j + 3] && board[i + 3][j + 3] === board[i + 4][j + 4])
-                        return board[i][j];
-                    // cross, backslash
-                    if (i >= 4 && board[i][j] && board[i][j] === board[i - 1][j + 1] && board[i - 1][j + 1] === board[i - 2][j + 2] && board[i - 2][j + 2] === board[i - 3][j + 3] && board[i - 3][j + 3] === board[i - 4][j + 4])
-                        return board[i][j];
-                }
-            }
-            return ROLE_FLAG.NA;
-        },
-        isATie = function () {
-            var isATie = true;
-            for (var i = 0; i < len; i++) {
-                if (!isATie) break;
-                for (var j = 0; j < len; j++) {
-                    if (!board[i][j]) { //if (board[i][j] === ROLE_FLAG.NA) {
-                        isATie = false;
-                        break;
-                    }
-                }
-            }
-            return isATie;
-        },
-        drawChess = function (pos) {
-            board[pos[0]][pos[1]] = isUserTurn ? ROLE_FLAG.USER : ROLE_FLAG.AI;
-            $board.circle(cell_base_size - (cell_base_size) / 10).addClass("chess").addClass(isUserTurn ? "user" : "ai").move(pos[1] * cell_base_size, pos[0] * cell_base_size);
-        },
-        checkpoint = function () {
-            // check if user/AI win
-            var winner = getWiner();
-            if (winner) {
-                if (confirm((winner === ROLE_FLAG.USER ? "You" : "Computer") + " Win!\n\nTry again?")) {
-                    restart();
-					return false;
-                }
-                return true;
-            }
-            // check if tied (NO more space for any chess)
-            var _isTie = isATie();
-            if (_isTie) {
-                if (confirm("So sad, you and computer are on a tie. :(\n\nTry again?")) {
-                    restart();
-					return false;
-                }
-                return true;
-            }
-            return false;
-        };
-
-    var restart = function () {
+        }
+        return isATie;
+    },
+    getResult = function () {
+        // check if user/AI win
+        var winner = getWiner();
+        if (winner) {
+            return winner;
+        }
+        // check if tied (NO more space for any chess)
+        return isATie();
+    };
+    var confirmRestart = function (winner) {
+        // win should be:  ROLE_FLAG.USER/ROLE_FLAG.USER/true/false
+        var msg;
+        switch (winner) {
+            case ROLE_FLAG.USER:
+                msg = "Congratulation, YOU WIN!\n\n";
+                break;
+            case ROLE_FLAG.AI:
+                msg = "Computer win.\n\n";
+                break;
+            case true:
+                msg = ":(  You and computer are on a tie.\n\n";
+                break;
+            default:
+                msg = "";
+                break;
+        }
+        msg += "Try again?";
+        return window.confirm(msg);
+    },
+    restart = function () {
         setInitialState();
         isUserTurn = true;
-		//isGameOver = false;
+        //isGameOver = false;
         $board.clear();
     };
     window.onload = function () {
@@ -182,16 +216,11 @@ Array.prototype.countsOf = function (val) {
                         continue;
                     }
                     chess = [i, j]; score = 0;
-                    _allWinMethods.forEach(function (method) {
-                        var idx = method.indexOfObject(chess);
-                        if (idx === -1)
-                            return;     // behavior as continue in for loop
-                        var roles = zero2FiveExcept(idx).map(function (num) {
-                            return method[num];
-                        }).map(function (pos) {
-                            if (_aiChesses.indexOfObject(pos))
+                    _allWinMethods.filter(function (m) { return m.indexOfSubArray(chess) !== -1; }).forEach(function (method) {
+                        var roles = method.map(function (pos) {
+                            if (_aiChesses.indexOfSubArray(pos) !== -1)
                                 return ROLE_FLAG.AI;
-                            else if (_userChesses.indexOfObject(pos))
+                            else if (_userChesses.indexOfSubArray(pos) !== -1)
                                 return ROLE_FLAG.USER;
                             else return ROLE_FLAG.NA;
                         }); // get others positions' chess in this method
@@ -202,13 +231,13 @@ Array.prototype.countsOf = function (val) {
                             // both AI and user has chess(es) in this method
                             //score += 0;
                         } else if (countsOfAIChesses === 4)
-                            score += 250;
+                            score += 2000;
                         else if (countsOfUserChesses === 4)
-                            score += 100;
+                            score += 1000;
                         else if (countsOfAIChesses === 3)
-                            score += 80;
+                            score += 220;
                         else if (countsOfUserChesses === 3)
-                            score += 70;
+                            score += 200;
                         else if (countsOfAIChesses === 2)
                             score += 50;
                         else if (countsOfUserChesses === 2)
@@ -223,12 +252,6 @@ Array.prototype.countsOf = function (val) {
             }
             return scoreBoard;
         };
-        var zero2FiveExcept = function (num) {
-            if (num >= 0 && num < 5) {
-                return [0, 1, 2, 3, 4].filter(function (d) { return d !== num; });
-            }
-            return [];
-        }
         // get the best position
         return function (board) {
             var scoreBoard = calcWeight(board);
