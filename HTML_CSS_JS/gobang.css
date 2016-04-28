@@ -1,7 +1,10 @@
 body{background-color: silver;}
 #gameboard{display:block;margin: 0 auto;background-color:#EEEEEE;padding:40px;}
-/* 40px * 40px for each cell */
 .line {stroke:lightgray;stroke-width:2;}
-.chess{stroke:gray; stroke-width:1;}
+.chess{stroke:gray; stroke-width:1;animation:drop 0.6s;}
 .chess.user{fill:white;}
 .chess.ai{fill:black;}
+@keyframes drop{
+    from{transform:scale(1.2);opacity:0.7;}
+    to{transform:scale(1);opacity:1;}
+}
