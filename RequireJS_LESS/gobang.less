@@ -1,0 +1,50 @@
+@padding:40px;
+@backgroundColor:#EEEEEE;
+@thick:1;
+@animationDuration: 0.6s;
+.animation(@anim){
+	-webkit-animation:@anim;
+	-moz-animation:@anim;
+	-ms-animation:@anim;
+	-o-animation:@anim;
+	animation:@anim;
+}
+.transform(@trans){
+	-webkit-transform:@trans;
+	-moz-transform:@trans;
+	-ms-transform:@trans;
+	-o-transform:@trans;
+	transform:@trans;
+}
+.opacity(@opacity) {
+  opacity: @opacity / 100;
+  filter: ~"alpha(opacity=@{opacity})";
+}
+body{background-color: silver;}
+#gameboard{
+	display:block;
+	margin: 0 auto;
+	background-color:@backgroundColor;
+	padding:@padding;
+}
+.line {
+	stroke:lightgray;
+	stroke-width:@thick;
+}
+.chess{
+	stroke:gray; 
+	stroke-width:@thick;
+	.animation(drop @animationDuration);
+}
+.chess.user{fill:white;}
+.chess.ai{fill:black;}
+@keyframes drop{
+    from{
+    	.transform(scale(1.2));
+    	.opacity(70);
+	}
+    to{
+    	.transform(scale(1));
+    	.opacity(100);
+	}
+}
